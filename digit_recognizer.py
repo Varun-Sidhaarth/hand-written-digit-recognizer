@@ -1,0 +1,96 @@
+import tensorflow as tf
+import numpy as np
+import matplotlib.pyplot as plt
+import cv2
+
+# Load and preprocess the MNIST dataset
+def load_data():
+    (x_train, y_train), (x_test, y_test) = tf.keras.datasets.mnist.load_data()
+    # Normalize pixel values
+    x_train = x_train.astype('float32') / 255.0
+    x_test = x_test.astype('float32') / 255.0
+    return (x_train, y_train), (x_test, y_test)
+
+# Create and compile the model
+def create_model():
+    model = tf.keras.Sequential([
+        tf.keras.layers.Flatten(input_shape=(28, 28)),
+        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(64, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(10, activation='softmax')
+    ])
+    
+    model.compile(optimizer='adam',
+                 loss='sparse_categorical_crossentropy',
+                 metrics=['accuracy'])
+    return model
+
+# Train the model
+def train_model(model, x_train, y_train, x_test, y_test):
+    history = model.fit(x_train, y_train,
+                       epochs=10,
+                       validation_data=(x_test, y_test),
+                       verbose=1)
+    return history
+
+# Preprocess a single image for prediction
+def preprocess_image(image_path):
+    # Read the image
+    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
+    # Resize to 28x28
+    img = cv2.resize(img, (28, 28))
+    # Invert the image (MNIST has white digits on black background)
+    img = 255 - img
+    # Normalize
+    img = img.astype('float32') / 255.0
+    return img
+
+# Predict digit from image
+def predict_digit(model, image):
+    # Reshape for model input
+    image = image.reshape(1, 28, 28)
+    # Get prediction
+    prediction = model.predict(image)
+    return np.argmax(prediction[0])
+
+def main():
+    # Load data
+    print("Loading MNIST dataset...")
+    (x_train, y_train), (x_test, y_test) = load_data()
+    
+    # Create and train model
+    print("Creating and training model...")
+    model = create_model()
+    history = train_model(model, x_train, y_train, x_test, y_test)
+    
+    # Save the model
+    model.save('digit_recognizer_model.h5')
+    print("Model saved as 'digit_recognizer_model.h5'")
+    
+    # Plot training history
+    plt.figure(figsize=(12, 4))
+    
+    plt.subplot(1, 2, 1)
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.title('Model Accuracy')
+    plt.xlabel('Epoch')
+    plt.ylabel('Accuracy')
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.title('Model Loss')
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig('training_history.png')
+    print("Training history plot saved as 'training_history.png'")
+
+if __name__ == "__main__":
+    main() 
